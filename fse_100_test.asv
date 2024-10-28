@@ -1,0 +1,39 @@
+% amount = input("Enter the check total: ");
+% 
+% for i = 10:5:20
+%     tip_amount = amount * (i / 100.00);
+%     [x, err] = sprintf("For %d%%, tip $%0.2f or a total of $%0.2f", [i, tip_amount, amount+tip_amount]);
+%     x
+% end
+
+
+%%
+
+%  randi(maxval, rows, cols
+rdata = randi(5, 1, 50);
+plot(rdata)
+
+%%
+
+data = 1:10;
+data = data .* data;
+
+plot(data)
+
+%%
+
+x_axis = 1: 0.1 :1.9;
+
+range =     1:10;
+quad =      range .* range;
+exponent =  range;
+for i = range
+end
+
+plot(x_axis, data, x_axis, data)
+xlabel("sus_value")
+ylabel("cool")
+
+title("exponent vs quadratic")
+legend("Quadratic", "Exponential")
+    
