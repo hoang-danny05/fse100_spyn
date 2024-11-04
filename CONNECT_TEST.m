@@ -1,5 +1,5 @@
 % locker 35 code 35 1 7
-brick = ConnectBrick("MOTO");
+brick = ConnectBrick("MOTOO");
 
 % brick.beep()
 % 

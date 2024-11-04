@@ -3,13 +3,13 @@
 % left : 28
 % right : 29
 % escape: 27
-manualControl(brick);c
+manualControl(brick);
 
 function manualControl(brick)
 
 %gcf refrerences a figure (get current figure)
 clc
-gcf
+gcf;
 
 
 

@@ -106,8 +106,38 @@ classdef MotorController
         % ///////////////////////////////////////////////////////////////////////////////
 
         function autoLeft(this, speed) 
-            % angle = 290;
-            angle = 600;
+            angle = 270;
+            % angle = 600;
+
+            disp("Calibrating")
+            this.brick.GyroCalibrate(this.gyroPort);
+            original_pos = this.brick.GyroAngle(this.gyroPort);
+            while (isnan(original_pos))
+                original_pos = this.brick.GyroAngle(this.gyroPort);
+                pause(.25)
+            end
+
+            % the actual turn
+            this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
+            this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
+            % this.brick.WaitForMotor(this.leftMotor);
+            % this.brick.WaitForMotor(this.rightMotor);
+ 
+            pause(3)
+            % this.brick.StopAllMotors("Brake")
+
+            this.adjustGyroTo(-90,speed,2);
+
+            final_pos = this.brick.GyroAngle(this.gyroPort)
+            % if difference positive, new angle is positive
+
+
+        end
+
+        function autoRight(this, speed) 
+            speed = speed * -1;
+            angle = 270;
+            % angle = 600;
 
             disp("Calibrating")
             this.brick.GyroCalibrate(this.gyroPort);
@@ -118,7 +148,7 @@ classdef MotorController
             end
 
 
-            % this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
+            this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
             this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
             % this.brick.WaitForMotor(this.leftMotor);
             % this.brick.WaitForMotor(this.rightMotor);
@@ -127,31 +157,10 @@ classdef MotorController
             pause(5)
             % this.brick.StopAllMotors("Brake")
 
-            disp("Final pos")
-            current_pos = this.brick.GyroAngle(this.gyroPort)
-            % should be -90
-            % if its < -90 turn right
-            % if its > -90 turn left more
-            difference = current_pos + 90;
-            % if difference positive, turn left
-            % if difference negative, turn right
-
-            new_angle = difference * 4;
-            % this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, new_angle, "Brake");
-            this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, new_angle, "Brake");
-            pause(2)
+            this.adjustGyroTo(90,speed,2);
+            
             final_pos = this.brick.GyroAngle(this.gyroPort)
-            % if difference positive, new angle is positive
-
-
-        end
-
-        function autoRight(this, speed) 
-            angle = 360;
-            this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * 1 * speed, angle);
-            this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * -1 * speed, angle);
-            this.brick.WaitForMotor(this.leftMotor);
-            this.brick.WaitForMotor(this.rightMotor);
+            % if difference positive, new angle is positive        
         end
 
         function autoForward(this, speed)
@@ -161,6 +170,22 @@ classdef MotorController
             % getColorChar(this.colorPort)
             this.brick.WaitForMotor(this.leftMotor);
             this.brick.WaitForMotor(this.rightMotor);
+        end
+
+        function adjustGyroTo(this, targetAngle, speed, waitTime)
+            disp("Final pos")
+            current_pos = this.brick.GyroAngle(this.gyroPort)
+            % should be -90
+            % if its < -90 turn right
+            % if its > -90 turn left more
+            difference = current_pos + 90;
+            % if difference positive, turn left
+            % if difference negative, turn right
+
+            new_angle = difference * 3;
+            this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, new_angle, "Brake");
+            this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, new_angle, "Brake");
+            pause(waitTime)
         end
         
     end
