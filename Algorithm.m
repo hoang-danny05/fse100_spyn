@@ -8,6 +8,8 @@
 % 3) make sure the robot stays looking straight when going forward
 %% CONSTANTS
 
+MANUAL_CONTROL = true;
+
 grandma_picked_up = false;
 grandma_dropped_off = false;
 
@@ -19,7 +21,15 @@ speed = 25;
 turning_speed = 25;
 distance_cutoff = 40;
 
-motors = MotorController(brick, colorPort, gyroPort, ultraPort);
+%motor control
+rp = -1;
+lp = -1;
+
+leftMotor ='A';
+rightMotor ='B';
+grabMotor = 'C';
+bothMotors = 'AB';
+
 % brick = ConnectBrick("MOTO");
 
 % other functions
@@ -31,6 +41,11 @@ right_distance = 0
 
 
 while true
+    if MANUAL_CONTROL
+        break;
+        manualControl();
+    end
+
     % check every color except red
     colorChar = getColorChar(brick, colorPort)
     switch colorChar
@@ -74,15 +89,193 @@ while true
         % backwards path
         motors.autoRight(turning_speed)
         motors.autoForward(speed)
-    end
-    
-    % check forward
-    % check right
-    
+    end 
 end
 
 
 %% Motor Control Code
+%↑
+function void = driveForward(MovementSpeed)
+    %driveForward: Controls the motor when pressing W 
+    %   Both motors moving at indicated speed
+    %   
+    brick.MoveMotor(this.leftMotor,    lp * MovementSpeed);
+    brick.MoveMotor(this.rightMotor,   rp * MovementSpeed);
+    void = 0;
+end
 
+%↓
+function void = driveBackward(this, MovementSpeed)
+    %driveForward: Controls the motor when pressing S
+    %   Both motors moving at indicated speed,backwards
+    %   i could have just done this.driveForward(-1 * speed)
+    this.brick.MoveMotor(this.leftMotor,    -1 * this.lp * MovementSpeed);
+    this.brick.MoveMotor(this.rightMotor,   -1 * this.rp * MovementSpeed);
+    void = 0;
+end
+
+%⏹
+function void = neutralInput(this)
+    %neutralInput: Controls the motor when pressing nothing
+    %   Both motors not moving
+    %   Can be either "coast" or "brake"
+    this.brick.StopMotor(this.leftMotor, this.brakeMode);
+    this.brick.StopMotor(this.rightMotor, this.brakeMode);
+    this.brick.StopMotor(this.grabMotor, this.brakeMode);
+    void = 0;
+end
+
+%←
+function void = turnLeft(this, MovementSpeed)
+    %driveForward: Controls the motor when pressing S
+    %   Both motors moving at indicated speed 
+    %   Left should be moving backward, right should be moving forward
+    this.brick.MoveMotor(this.leftMotor,    -1 * this.lp * MovementSpeed);
+    this.brick.MoveMotor(this.rightMotor,   1  * this.rp * MovementSpeed);
+
+    
+    void = 0;
+end
+
+%→
+function void = turnRight(this, MovementSpeed)
+    %driveForward: Controls the motor when pressing S
+    %   Both motors moving at indicated speed 
+    %   Left should be moving forward, right should be moving backward
+    this.brick.MoveMotor(this.leftMotor,    1 * this.lp * MovementSpeed);
+    this.brick.MoveMotor(this.rightMotor,   -1  * this.rp * MovementSpeed);
+    void = 0;
+end
+
+function void = moveGrabber(this, GrabbingSpeed)
+    %driveForward: Starts picking up the person at the indicated speed
+    %   Bidirectional: accepts negative inputs. 
+    this.brick.MoveMotor(this.grabMotor, GrabbingSpeed);
+    void = 0;
+end
+
+% ///////////////////////////////////////////////////////////////////////////////
+% AUTOMATIC FUNCTIONS
+% ///////////////////////////////////////////////////////////////////////////////
+
+function autoLeft(this, speed) 
+    angle = 270;
+    % angle = 600;
+
+    disp("Calibrating")
+    this.brick.GyroCalibrate(this.gyroPort);
+    original_pos = this.brick.GyroAngle(this.gyroPort);
+    while (isnan(original_pos))
+        original_pos = this.brick.GyroAngle(this.gyroPort);
+        pause(.25)
+    end
+
+    % the actual turn
+    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
+    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
+    % this.brick.WaitForMotor(this.leftMotor);
+    % this.brick.WaitForMotor(this.rightMotor);
+
+    pause(3)
+    % this.brick.StopAllMotors("Brake")
+
+    this.adjustGyroTo(-90,speed,2);
+
+    final_pos = this.brick.GyroAngle(this.gyroPort)
+    % if difference positive, new angle is positive
+
+
+end
+
+function autoRight(this, speed) 
+    speed = speed * -1;
+    angle = 270;
+    % angle = 600;
+
+    disp("Calibrating")
+    this.brick.GyroCalibrate(this.gyroPort);
+    original_pos = this.brick.GyroAngle(this.gyroPort);
+    while (isnan(original_pos))
+        original_pos = this.brick.GyroAngle(this.gyroPort);
+        pause(.25)
+    end
+
+
+    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
+    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
+    % this.brick.WaitForMotor(this.leftMotor);
+    % this.brick.WaitForMotor(this.rightMotor);
+    % 
+    
+    pause(5)
+    % this.brick.StopAllMotors("Brake")
+
+    this.adjustGyroTo(90,speed,2);
+    
+    final_pos = this.brick.GyroAngle(this.gyroPort)
+    % if difference positive, new angle is positive        
+end
+
+function autoForward(this, speed)
+    angle = 1200;
+    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * 1 * speed, angle, "Brake");
+    this.brick.MoveMotorAngleRel(this.rightMotor, this.lp * 1 * speed, angle, "Brake");
+    % getColorChar(this.colorPort)
+    this.brick.WaitForMotor(this.leftMotor);
+    this.brick.WaitForMotor(this.rightMotor);
+end
+
+function adjustGyroTo(this, targetAngle, speed, waitTime)
+    disp("Final pos")
+    current_pos = this.brick.GyroAngle(this.gyroPort)
+    % should be -90
+    % if its < -90 turn right
+    % if its > -90 turn left more
+    difference = current_pos + 90;
+    % if difference positive, turn left
+    % if difference negative, turn right
+
+    new_angle = difference * 3;
+    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, new_angle, "Brake");
+    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, new_angle, "Brake");
+    pause(waitTime)
+end
 
 %% Manual Control Code
+
+function manualControl()
+    global key;
+    InitKeyboard();
+    
+    while 1
+        pause(0.1);
+        switch key
+            case 'w'
+                disp('w');
+                brick.MoveMotor(bothMotors,    lp * movementSpeed);
+            case 'a'
+                disp()
+                disp('a');
+            case 's'
+                disp('s');
+            case 'd'
+                disp('d');
+            case 'uparrow'
+                disp('Up Arrow Pressed!');
+            case 'downarrow'
+                disp('Down Arrow Pressed!');
+            % case 'leftarrow'
+            %     disp('Left Arrow Pressed!');
+            % case 'rightarrow'
+            %     disp('Right Arrow Pressed!');
+            case 'space'
+                disp('space');
+            case 0
+                disp('No Key Pressed!');
+            case 'q'
+                break;
+        end
+    end
+    
+    CloseKeyboard();
+end
