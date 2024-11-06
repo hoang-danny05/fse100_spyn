@@ -8,7 +8,7 @@
 % 3) make sure the robot stays looking straight when going forward
 %% CONSTANTS
 
-MANUAL_CONTROL = true;
+MANUAL_CONTROL = false;
 
 grandma_picked_up = false;
 grandma_dropped_off = false;
@@ -17,37 +17,262 @@ colorPort = 1;
 gyroPort = 2;
 ultraPort = 3;
 
-speed = 25;
-turning_speed = 25;
-distance_cutoff = 40;
+
 
 %motor control
-rp = -1;
-lp = -1;
+% polarization = -1 
+p = -1;
 
-leftMotor ='A';
-rightMotor ='B';
-grabMotor = 'C';
-bothMotors = 'AB';
+leftMotor   ='A';
+rightMotor  ='B';
+grabMotor   = 'C';
+bothMotors  = 'AB';
+
+movementSpeed = 25;
+automaticSpeed = 100;
+turningSpeed = 50;
+distanceCutoff = 40;
 
 % brick = ConnectBrick("MOTO");
 
 % other functions
-forward_distance = 0
-left_distance = 0
-right_distance = 0
+forward_distance    = 0;
+left_distance       = 0;
+right_distance      = 0;
 
-%% Algorithm
+
+
+%% Motor Control Code
+%↑
+%↓
+%⏹
+%←
+%→
+
+% ///////////////////////////////////////////////////////////////////////////////
+% AUTOMATIC FUNCTIONS
+% ///////////////////////////////////////////////////////////////////////////////
+
+function autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed) 
+    % angle = 270; without any rubber wheels
+    angle = 750;
+
+    disp("Calibrating")
+    brick.GyroCalibrate(gyroPort);
+    original_pos = brick.GyroAngle(gyroPort);
+    while (isnan(original_pos))
+        original_pos = brick.GyroAngle(gyroPort);
+        pause(.25)
+    end
+
+    % the actual turn
+    brick.MoveMotorAngleRel(leftMotor, p * -1 * turningSpeed, angle, "Brake");
+    brick.MoveMotorAngleRel(rightMotor, p * 1 * turningSpeed, angle, "Brake");
+    brick.WaitForMotor('AB');
+    % this.brick.WaitForMotor(this.rightMotor);
+
+    pause(3)
+    % this.brick.StopAllMotors("Brake")
+
+    deviation = 90;
+    while (abs(deviation) > 0) 
+        deviation = adjustGyroTo(-90, turningSpeed, 2, brick, p, gyroPort, leftMotor, rightMotor);
+    end
+
+    % this.adjustGyroTo(-90,turningSpeed,2);
+
+    final_pos = brick.GyroAngle(gyroPort)
+    % if difference positive, new angle is positive
+    % brick.MoveMotorAngleRel('AB', p * -1 * 50, 90, "Brake")
+    % brick.WaitForMotor('AB');
+end
+
+function autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed) 
+    % angle = 270;
+    angle = 700;
+
+
+    disp("Calibrating")
+    brick.GyroCalibrate(gyroPort);
+    original_pos = brick.GyroAngle(gyroPort);
+    while (isnan(original_pos))
+        original_pos = brick.GyroAngle(gyroPort);
+        pause(.25)
+    end
+
+    % the actual turn
+    brick.MoveMotorAngleRel(leftMotor, p * 1 * turningSpeed, angle, "Brake");
+    brick.MoveMotorAngleRel(rightMotor, p * -1 * turningSpeed, angle, "Brake");
+    brick.WaitForMotor('AB');
+    % this.brick.WaitForMotor(this.rightMotor);
+
+    pause(3)
+    % this.brick.StopAllMotors("Brake")
+
+    deviation = 90;
+    while (abs(deviation) > 0) 
+        deviation = adjustGyroTo(90, turningSpeed, 2, brick, p, gyroPort, leftMotor, rightMotor);
+    end
+    
+
+    % this.adjustGyroTo(-90,turningSpeed,2);
+
+    final_pos = brick.GyroAngle(gyroPort)
+    % if difference positive, new angle is positive
+    % brick.MoveMotorAngleRel('AB', p * -1 * 50, 90, "Brake")
+end
+
+function autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
+    angle = 1200;
+    brick.MoveMotorAngleRel(leftMotor, p * 1 * automaticSpeed, angle, "Brake");
+    brick.MoveMotorAngleRel(rightMotor, p * 1 * automaticSpeed, angle, "Brake");
+    % getColorChar(this.colorPort)
+    brick.WaitForMotor(leftMotor);
+    brick.WaitForMotor(rightMotor);
+end
+
+function deviation = adjustGyroTo(targetAngle, speed, waitTime, brick, p, gyroPort, leftMotor, rightMotor)
+    % disp("Final pos")
+    current_pos = brick.GyroAngle(gyroPort);
+    % should be -90
+    % if its < -90 turn right
+    % if its > -90 turn left more
+    difference = current_pos - targetAngle;
+    % if difference positive, turn left
+    % if difference negative, turn right
+
+    new_angle = difference * 8;
+    brick.MoveMotorAngleRel(leftMotor, p * -1 * speed, new_angle, "Brake");
+    brick.MoveMotorAngleRel(rightMotor, p * 1 * speed, new_angle, "Brake");
+    brick.WaitForMotor('AB'); 
+    % pause(waitTime)
+    deviation = brick.GyroAngle(gyroPort) - targetAngle;
+end
+
+%% Manual Control Code
+
+
+function manualControl(brick, p, leftMotor, rightMotor, bothMotors, grabMotor, movementSpeed)
+    global key;
+    InitKeyboard();
+    
+    while 1
+        pause(0.1);
+        switch key
+            case 'w'
+                disp('w');
+                brick.MoveMotor(bothMotors,    lp * movementSpeed);
+            case 'a'
+                disp('a');
+                brick.MoveMotor(leftMotor, -1 * lp * movementSpeed);
+                brick.MoveMotor(rightMotor, lp * movementSpeed);
+            case 's'
+                disp('s');
+                brick.MoveMotor(bothMotors, -1 * lp * movementSpeed);
+            case 'd'
+                disp('d');
+                brick.MoveMotor(leftMotor, lp * movementSpeed);
+                brick.MoveMotor(rightMotor, -1 * lp * movementSpeed);
+            case 'uparrow'
+                disp('Up Arrow Pressed!');
+                brick.MoveMotor(grabMotor, 10);
+                pause(0.25);
+                brick.MoveMotor(grabMotor, 1);
+            case 'downarrow'
+                disp('Down Arrow Pressed!');
+                brick.MoveMotor(grabMotor, -10);
+                pause(0.25);
+                brick.MoveMotor(grabMotor, -1);
+            % case 'leftarrow'
+            %     disp('Left Arrow Pressed!');
+            % case 'rightarrow'
+            %     disp('Right Arrow Pressed!');
+            case 'space'
+                disp('space');
+            case 0
+                disp('No Key Pressed!');
+                brick.StopAllMotors();
+            case 'q'
+                break;
+        end
+    end
+    
+    CloseKeyboard();
+end
+
+%% GetColorChar
+
+function colorChar = getColorChar(brick, sensorPort)
+%   getColorChar
+%       Returns a character representation of the color being sensed by the
+%       color sensor. Possible chars reflect the different unique decisions
+%       to be made based on the char. 
+%   Possible outputs:
+%       N: Not anything significant
+%       R: Red
+%       G: Green
+%       B: Blue
+%       Y: Yellow
+
+% TWO MODES:
+%   ColorCode(2): easier
+%   ColorRGB(4): harder but gives more control
+    tolerance_r = [20 10 9];
+    tolerance_g = [5 9 9];
+    tolerance_b = [5 9 9];
+    tolerance_y = [20 15 10];
+
+    typical_r = [166, 41, 29];
+    typical_g = [33, 119, 54];
+    typical_b = [33, 95, 138];
+    typical_y = [287, 189, 46];
+
+    possible_chars = ['R', 'G', 'B', 'Y'];
+    tolerances = [tolerance_r;tolerance_g;tolerance_b;tolerance_y];
+    typical_values = [typical_r;typical_g;typical_b;typical_y];
+
+    brick.SetColorMode(sensorPort, 4); %ColorCode Mode
+
+    color = brick.ColorRGB(sensorPort)
+    colorChar = 'N';
+
+    for row = 1:4
+        fits_lower = true;
+        fits_upper = true;
+        % check lower tolerance
+        lower_bounds = typical_values(row,:) - tolerances(row,:);
+        for col = 1:3
+            if lower_bounds(col) > color(col)
+                fits_lower = false;
+                break
+            end
+        end
+        % check upper tolerance
+        upper_bounds = typical_values(row,:) + tolerances(row,:);
+        for col = 1:3
+            if upper_bounds(col) < color(col)
+                fits_upper = false;
+                break
+            end
+        end
+
+        if (fits_lower & fits_upper)
+            colorChar = possible_chars(row);
+        end
+    end
+end
+
+
+%% Algorithm (main func)
 
 
 while true
     if MANUAL_CONTROL
         break;
-        manualControl();
     end
 
     % check every color except red
-    colorChar = getColorChar(brick, colorPort)
+    colorChar = getColorChar(brick, colorPort);
     switch colorChar
         case 'B'
             disp("BLUE SENSED")
@@ -59,223 +284,40 @@ while true
 
     forward_distance = brick.UltrasonicDist(ultraPort)
 
-    motors.autoLeft(turning_speed);
+    autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
     left_distance = brick.UltrasonicDist(ultraPort)
     
     % if left is far
-    if left_distance >= distance_cutoff
-        motors.autoForward(speed);
+    if left_distance >= distanceCutoff
+        autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
         continue
     end
 
     % if forward is far
-    if forward_distance >= distance_cutoff
-        motors.autoRight(turning_speed);
-        motors.autoForward(speed);
+    if forward_distance >= distanceCutoff
+        autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
+        autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
         continue
     else 
         % 180
-        motors.autoRight(turning_speed);
-        motors.autoRight(turning_speed);
+        autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
+        autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
     end
 
     % facing right
     right_distance = brick.UltrasonicDist(ultraPort);
-    if (right_distance >= distance_cutoff) 
+    if (right_distance >= distanceCutoff) 
         % rightPath
-        motors.autoForward(speed)
+        autoForward(brick, leftMotor, rightMotor, p, automaticSpeed);
         continue
     else
         % backwards path
-        motors.autoRight(turning_speed)
-        motors.autoForward(speed)
+        autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
+        autoForward(brick, leftMotor, rightMotor, p, automaticSpeed);
     end 
 end
 
+%% MAIN
 
-%% Motor Control Code
-%↑
-function void = driveForward(MovementSpeed)
-    %driveForward: Controls the motor when pressing W 
-    %   Both motors moving at indicated speed
-    %   
-    brick.MoveMotor(this.leftMotor,    lp * MovementSpeed);
-    brick.MoveMotor(this.rightMotor,   rp * MovementSpeed);
-    void = 0;
-end
-
-%↓
-function void = driveBackward(this, MovementSpeed)
-    %driveForward: Controls the motor when pressing S
-    %   Both motors moving at indicated speed,backwards
-    %   i could have just done this.driveForward(-1 * speed)
-    this.brick.MoveMotor(this.leftMotor,    -1 * this.lp * MovementSpeed);
-    this.brick.MoveMotor(this.rightMotor,   -1 * this.rp * MovementSpeed);
-    void = 0;
-end
-
-%⏹
-function void = neutralInput(this)
-    %neutralInput: Controls the motor when pressing nothing
-    %   Both motors not moving
-    %   Can be either "coast" or "brake"
-    this.brick.StopMotor(this.leftMotor, this.brakeMode);
-    this.brick.StopMotor(this.rightMotor, this.brakeMode);
-    this.brick.StopMotor(this.grabMotor, this.brakeMode);
-    void = 0;
-end
-
-%←
-function void = turnLeft(this, MovementSpeed)
-    %driveForward: Controls the motor when pressing S
-    %   Both motors moving at indicated speed 
-    %   Left should be moving backward, right should be moving forward
-    this.brick.MoveMotor(this.leftMotor,    -1 * this.lp * MovementSpeed);
-    this.brick.MoveMotor(this.rightMotor,   1  * this.rp * MovementSpeed);
-
-    
-    void = 0;
-end
-
-%→
-function void = turnRight(this, MovementSpeed)
-    %driveForward: Controls the motor when pressing S
-    %   Both motors moving at indicated speed 
-    %   Left should be moving forward, right should be moving backward
-    this.brick.MoveMotor(this.leftMotor,    1 * this.lp * MovementSpeed);
-    this.brick.MoveMotor(this.rightMotor,   -1  * this.rp * MovementSpeed);
-    void = 0;
-end
-
-function void = moveGrabber(this, GrabbingSpeed)
-    %driveForward: Starts picking up the person at the indicated speed
-    %   Bidirectional: accepts negative inputs. 
-    this.brick.MoveMotor(this.grabMotor, GrabbingSpeed);
-    void = 0;
-end
-
-% ///////////////////////////////////////////////////////////////////////////////
-% AUTOMATIC FUNCTIONS
-% ///////////////////////////////////////////////////////////////////////////////
-
-function autoLeft(this, speed) 
-    angle = 270;
-    % angle = 600;
-
-    disp("Calibrating")
-    this.brick.GyroCalibrate(this.gyroPort);
-    original_pos = this.brick.GyroAngle(this.gyroPort);
-    while (isnan(original_pos))
-        original_pos = this.brick.GyroAngle(this.gyroPort);
-        pause(.25)
-    end
-
-    % the actual turn
-    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
-    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
-    % this.brick.WaitForMotor(this.leftMotor);
-    % this.brick.WaitForMotor(this.rightMotor);
-
-    pause(3)
-    % this.brick.StopAllMotors("Brake")
-
-    this.adjustGyroTo(-90,speed,2);
-
-    final_pos = this.brick.GyroAngle(this.gyroPort)
-    % if difference positive, new angle is positive
-
-
-end
-
-function autoRight(this, speed) 
-    speed = speed * -1;
-    angle = 270;
-    % angle = 600;
-
-    disp("Calibrating")
-    this.brick.GyroCalibrate(this.gyroPort);
-    original_pos = this.brick.GyroAngle(this.gyroPort);
-    while (isnan(original_pos))
-        original_pos = this.brick.GyroAngle(this.gyroPort);
-        pause(.25)
-    end
-
-
-    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, angle, "Brake");
-    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, angle, "Brake");
-    % this.brick.WaitForMotor(this.leftMotor);
-    % this.brick.WaitForMotor(this.rightMotor);
-    % 
-    
-    pause(5)
-    % this.brick.StopAllMotors("Brake")
-
-    this.adjustGyroTo(90,speed,2);
-    
-    final_pos = this.brick.GyroAngle(this.gyroPort)
-    % if difference positive, new angle is positive        
-end
-
-function autoForward(this, speed)
-    angle = 1200;
-    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * 1 * speed, angle, "Brake");
-    this.brick.MoveMotorAngleRel(this.rightMotor, this.lp * 1 * speed, angle, "Brake");
-    % getColorChar(this.colorPort)
-    this.brick.WaitForMotor(this.leftMotor);
-    this.brick.WaitForMotor(this.rightMotor);
-end
-
-function adjustGyroTo(this, targetAngle, speed, waitTime)
-    disp("Final pos")
-    current_pos = this.brick.GyroAngle(this.gyroPort)
-    % should be -90
-    % if its < -90 turn right
-    % if its > -90 turn left more
-    difference = current_pos + 90;
-    % if difference positive, turn left
-    % if difference negative, turn right
-
-    new_angle = difference * 3;
-    this.brick.MoveMotorAngleRel(this.leftMotor, this.lp * -1 * speed, new_angle, "Brake");
-    this.brick.MoveMotorAngleRel(this.rightMotor, this.rp * 1 * speed, new_angle, "Brake");
-    pause(waitTime)
-end
-
-%% Manual Control Code
-
-function manualControl()
-    global key;
-    InitKeyboard();
-    
-    while 1
-        pause(0.1);
-        switch key
-            case 'w'
-                disp('w');
-                brick.MoveMotor(bothMotors,    lp * movementSpeed);
-            case 'a'
-                disp()
-                disp('a');
-            case 's'
-                disp('s');
-            case 'd'
-                disp('d');
-            case 'uparrow'
-                disp('Up Arrow Pressed!');
-            case 'downarrow'
-                disp('Down Arrow Pressed!');
-            % case 'leftarrow'
-            %     disp('Left Arrow Pressed!');
-            % case 'rightarrow'
-            %     disp('Right Arrow Pressed!');
-            case 'space'
-                disp('space');
-            case 0
-                disp('No Key Pressed!');
-            case 'q'
-                break;
-        end
-    end
-    
-    CloseKeyboard();
-end
+% autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed)
+% autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
