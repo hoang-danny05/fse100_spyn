@@ -8,7 +8,7 @@
 % 3) make sure the robot stays looking straight when going forward
 %% CONSTANTS
 
-MANUAL_CONTROL = false;
+MANUAL_CONTROL = true;
 
 grandma_picked_up = false;
 grandma_dropped_off = false;
@@ -29,7 +29,7 @@ grabMotor   = 'C';
 bothMotors  = 'AB';
 
 movementSpeed = 25;
-automaticSpeed = 100;
+automaticSpeed = 25;
 turningSpeed = 50;
 distanceCutoff = 40;
 
@@ -123,10 +123,26 @@ function autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed)
 end
 
 function autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
+    brick.ResetMotorAngle('AB');
     angle = 1200;
     brick.MoveMotorAngleRel(leftMotor, p * 1 * automaticSpeed, angle, "Brake");
     brick.MoveMotorAngleRel(rightMotor, p * 1 * automaticSpeed, angle, "Brake");
-    % getColorChar(this.colorPort)
+    tic;
+    timeToWait = 5;
+    sawRed = false;
+    while (toc < timeToWait) 
+        if (getColorChar(brick, 1) == 'R')
+            disp('AHHHAHHHHHHHH')
+            brick.StopAllMotors();
+            pause(2);
+            sawRed = true;
+            break;
+        end
+    end
+    if (sawRed) 
+        brick.MoveMotorAngleRel('AB', p * 1 * automaticSpeed, angle - brick.GetMotorAngle('AB'), "Brake")
+    end
+        % getColorChar(this.colorPort)
     brick.WaitForMotor(leftMotor);
     brick.WaitForMotor(rightMotor);
 end
@@ -217,12 +233,12 @@ function colorChar = getColorChar(brick, sensorPort)
 % TWO MODES:
 %   ColorCode(2): easier
 %   ColorRGB(4): harder but gives more control
-    tolerance_r = [20 10 9];
+    tolerance_r = [30 30 20];
     tolerance_g = [5 9 9];
     tolerance_b = [5 9 9];
     tolerance_y = [20 15 10];
 
-    typical_r = [166, 41, 29];
+    typical_r = [166, 41, 23];
     typical_g = [33, 119, 54];
     typical_b = [33, 95, 138];
     typical_y = [287, 189, 46];
@@ -233,7 +249,7 @@ function colorChar = getColorChar(brick, sensorPort)
 
     brick.SetColorMode(sensorPort, 4); %ColorCode Mode
 
-    color = brick.ColorRGB(sensorPort)
+    color = brick.ColorRGB(sensorPort);
     colorChar = 'N';
 
     for row = 1:4
@@ -321,3 +337,5 @@ end
 
 % autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed)
 % autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
+autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
+% getColorChar(brick,1)
