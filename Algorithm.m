@@ -8,7 +8,7 @@
 % 3) make sure the robot stays looking straight when going forward
 %% CONSTANTS
 
-MANUAL_CONTROL = true;
+MANUAL_CONTROL = false;
 
 grandma_picked_up = false;
 grandma_dropped_off = false;
@@ -30,8 +30,9 @@ bothMotors  = 'AB';
 
 movementSpeed = 25;
 automaticSpeed = 25;
-turningSpeed = 50;
+turningSpeed = 75;
 distanceCutoff = 40;
+tooCloseDistanceCutoff = 7;
 
 brick.SetColorMode(1, 2);
 
@@ -133,16 +134,38 @@ function autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
     timeToWait = 5;
     sawRed = false;
     while (toc < timeToWait) 
-        if (getColorChar(brick, 1) == 'R')
+        colorChar = getColorChar(brick, 1);
+        if (colorChar == 'R')
             disp('AHHHAHHHHHHHH')
             brick.StopAllMotors();
             pause(2);
             sawRed = true;
             break;
         end
+        switch colorChar
+        case 'B'
+            disp("BLUE SENSED")
+            brick.StopAllMotors();
+            brick.beep();
+            pause(1);
+            brick.beep();
+            break;
+        case 'G'
+            disp("GREEN SENSED")
+            brick.StopAllMotors();
+            brick.beep();
+            pause(1);
+            brick.beep();
+            pause(1);
+            brick.beep();
+            break;
+        case 'Y'
+            disp("YELLOW SENSED")
+        end
     end
     if (sawRed) 
-        brick.MoveMotorAngleRel('AB', p * 1 * automaticSpeed, angle - brick.GetMotorAngle('AB'), "Brake")
+        brick.GetMotorAngle('A')
+        brick.MoveMotorAngleRel('AB', p * 1 * automaticSpeed, angle + brick.GetMotorAngle('AB'), "Brake")
     end
         % getColorChar(this.colorPort)
     brick.WaitForMotor(leftMotor);
@@ -179,18 +202,18 @@ function manualControl(brick, p, leftMotor, rightMotor, bothMotors, grabMotor, m
         switch key
             case 'w'
                 disp('w');
-                brick.MoveMotor(bothMotors,    lp * movementSpeed);
+                brick.MoveMotor(bothMotors,    p * movementSpeed);
             case 'a'
                 disp('a');
-                brick.MoveMotor(leftMotor, -1 * lp * movementSpeed);
-                brick.MoveMotor(rightMotor, lp * movementSpeed);
+                brick.MoveMotor(leftMotor, -1 * p * movementSpeed);
+                brick.MoveMotor(rightMotor, p * movementSpeed);
             case 's'
                 disp('s');
-                brick.MoveMotor(bothMotors, -1 * lp * movementSpeed);
+                brick.MoveMotor(bothMotors, -1 * p * movementSpeed);
             case 'd'
                 disp('d');
-                brick.MoveMotor(leftMotor, lp * movementSpeed);
-                brick.MoveMotor(rightMotor, -1 * lp * movementSpeed);
+                brick.MoveMotor(leftMotor, p * movementSpeed);
+                brick.MoveMotor(rightMotor, -1 * p * movementSpeed);
             case 'uparrow'
                 disp('Up Arrow Pressed!');
                 brick.MoveMotor(grabMotor, 10);
@@ -207,6 +230,9 @@ function manualControl(brick, p, leftMotor, rightMotor, bothMotors, grabMotor, m
             %     disp('Right Arrow Pressed!');
             case 'space'
                 disp('space');
+            case 'escape'
+                disp('escape!')
+                break;
             case 0
                 disp('No Key Pressed!');
                 brick.StopAllMotors();
@@ -307,16 +333,32 @@ while true
     switch colorChar
         case 'B'
             disp("BLUE SENSED")
+            brick.beep();
+            pause(1);
+            brick.beep();
+            break;
         case 'G'
             disp("GREEN SENSED")
+            brick.beep();
+            pause(1);
+            brick.beep();
+            pause(1);
+            brick.beep();
+            manualControl(brick, p, leftMotor, rightMotor, bothMotors, grabMotor, movementSpeed)
+            break;
         case 'Y'
             disp("YELLOW SENSED")
     end
 
     forward_distance = brick.UltrasonicDist(ultraPort)
+    if (forward_distance <= tooCloseDistanceCutoff)
+        brick.MoveMotorAngleRel('AB', p * -1 * movementSpeed, 360, "Brake");
+    end
+
+
 
     autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
-    left_distance = brick.UltrasonicDist(ultraPort)
+    left_distance = brick.UltrasonicDist(ultraPort);
     
     % if left is far
     if left_distance >= distanceCutoff
@@ -352,5 +394,5 @@ end
 
 % autoLeft(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed)
 % autoRight(brick, p, gyroPort, leftMotor, rightMotor, turningSpeed);
-autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
+% autoForward(brick, leftMotor, rightMotor, p, automaticSpeed)
 % getColorChar(brick,1)
